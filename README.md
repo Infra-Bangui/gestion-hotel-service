@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Contrôle National Hôtelier — RCA
 
-## Getting Started
+**Version 2.0.0** — Prototype Next.js du registre national des entrées/sorties hôtelières (Police Nationale / RCA).
 
-First, run the development server:
+## Démarrage local
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Comptes démo (développement)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Rôle   | Identifiant | Mot de passe |
+|--------|-------------|--------------|
+| Police | `police`    | `police`     |
+| Hôtel  | `ledger`    | `hotel`      |
+| Admin  | `admin`     | `admin`      |
 
-## Learn More
+## Nouveautés v2
 
-To learn more about Next.js, take a look at the following resources:
+- Blocage de connexion si l’établissement hôtelier est **suspendu**
+- **Rapport périodique PDF** (7 / 30 / 90 jours) depuis le tableau de bord police/admin
+- Exports PDF des listes (présents, historique, recherche nationale)
+- Affichage de la version dans l’UI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Sécurité
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- En-têtes HTTP : CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy
+- Mot de passe retiré de la session après connexion
+- Verrouillage temporaire après échecs de login
+- Expiration de session après inactivité (30 min)
+- Comptes démo masqués en production
 
-## Deploy on Vercel
+## Déploiement Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx vercel --prod
+```
