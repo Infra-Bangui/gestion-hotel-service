@@ -1,0 +1,28 @@
+services:
+  gestion-hotel:
+    image: ghcr.io/infra-bangui/gestion-hotel-service:latest
+    container_name: gestion-hotel
+    restart: unless-stopped
+    ports:
+      - "8080:3000"
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      NODE_ENV: production
+      NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS: "false"
+    mem_limit: 2g
+    memswap_limit: 2g
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
