@@ -1,6 +1,10 @@
+# Stack gestion-hotel — projet Compose "app" (dérivé du dossier /opt/app, inchangé).
+# Contrat reverse-proxy : le port hôte 8080 -> conteneur 3000. NE PAS modifier.
 services:
   gestion-hotel:
-    image: ghcr.io/infra-bangui/gestion-hotel-service:latest
+    # Tag immuable fourni par la CI via /opt/app/.env (IMAGE_TAG=sha-xxxxxxx).
+    # Fallback "latest" si .env absent (démarrage manuel de secours).
+    image: ghcr.io/infra-bangui/gestion-hotel-service:${IMAGE_TAG:-latest}
     container_name: gestion-hotel
     restart: unless-stopped
     ports:
@@ -9,18 +13,24 @@ services:
       HOSTNAME: "0.0.0.0"
       PORT: "3000"
       NODE_ENV: production
-      NEXT_PUBLIC_SHOW_DEMO_ACCOUNTS: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
     mem_limit: 2g
     memswap_limit: 2g
+    stop_grace_period: 20s
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
         ]
       interval: 30s
       timeout: 5s
