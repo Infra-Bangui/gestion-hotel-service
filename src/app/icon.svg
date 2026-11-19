@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Controle National Hotelier">
+  <rect width="32" height="32" rx="7" fill="#0A1424"/>
+  <path
+    d="M16 4.2 26 8.1v8.2c0 6.2-4.3 10.6-10 12.1C10.3 26.9 6 22.5 6 16.3V8.1Z"
+    fill="#101E33"
+    stroke="#C9A227"
+    stroke-width="1.4"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M16 8.4 17.7 12l3.8.4-2.8 2.6.8 3.7L16 16.7l-3.5 2 .8-3.7-2.8-2.6 3.8-.4Z"
+    fill="#FFCE00"
+  />
+  <rect x="9.2" y="21.2" width="2.7" height="2.2" fill="#003082"/>
+  <rect x="11.9" y="21.2" width="2.7" height="2.2" fill="#FFFFFF"/>
+  <rect x="14.6" y="21.2" width="2.8" height="2.2" fill="#D21034"/>
+  <rect x="17.4" y="21.2" width="2.7" height="2.2" fill="#289728"/>
+  <rect x="20.1" y="21.2" width="2.7" height="2.2" fill="#FFCE00"/>
+</svg>

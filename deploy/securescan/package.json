@@ -1,0 +1,12 @@
+{
+  "name": "sigch-pont-securescan-x50",
+  "private": true,
+  "description": "Pont WebSocket local SecureScan X50 → SIGCH (poste Windows réception)",
+  "scripts": {
+    "start": "node pont-securescan-x50.js"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "ws": "^8.18.0"
+  }
+}

@@ -8,19 +8,53 @@ import {
   SHOW_DEMO_ACCOUNTS,
   sanitizeUser,
 } from "@/lib/security";
+
 /* ============================================================
    SYSTÈME NATIONAL DE CONTRÔLE HÔTELIER — RCA
    Ministère de la Sécurité Publique · Police Nationale
    FR / EN / RU · Registre entrées-sorties · Scan CNI & Passeport
    ============================================================ */
 
-const C = {
-  navy: "#101E33", navyDeep: "#0A1424", navyLight: "#1B3050",
-  gold: "#C9A227", goldSoft: "#E8D48A",
-  paper: "#F4F4F0", card: "#FFFFFF", ink: "#15202E", gray: "#6B7686", line: "#DDE1E6",
-  green: "#1E7D4E", greenSoft: "#E2F2E9", red: "#B3261E", redSoft: "#FBE9E7",
-  amber: "#B7791F", amberSoft: "#FCF3DC", blueSoft: "#E8EEF7",
+const THEMES = {
+  clair: {
+    navy: "#101E33", navyDeep: "#0A1424", navyLight: "#1B3050",
+    gold: "#C9A227", goldSoft: "#E8D48A",
+    paper: "#F4F4F0", card: "#FFFFFF", ink: "#15202E", head: "#101E33", gray: "#6B7686", line: "#DDE1E6",
+    green: "#1E7D4E", greenSoft: "#E2F2E9", red: "#B3261E", redSoft: "#FBE9E7",
+    amber: "#B7791F", amberSoft: "#FCF3DC", blueSoft: "#E8EEF7",
+  },
+  sombre: {
+    navy: "#0E1A2E", navyDeep: "#070F1C", navyLight: "#22354F",
+    gold: "#D4B13E", goldSoft: "#E8D48A",
+    paper: "#0F1722", card: "#17212F", ink: "#E6EAF0", head: "#EAD9A0", gray: "#9AA6B5", line: "#2A3647",
+    green: "#3FBF6A", greenSoft: "#163222", red: "#E5675E", redSoft: "#3A1D1A",
+    amber: "#E0A83E", amberSoft: "#352A12", blueSoft: "#1A2738",
+  },
 };
+
+/* Couleurs d'accent proposées (remplacent gold/goldSoft) */
+const ACCENTS = {
+  or:       { gold: "#C9A227", goldSoft: "#E8D48A", nom: "Or" },
+  ambre:    { gold: "#D98C2B", goldSoft: "#F3C98A", nom: "Ambre" },
+  emeraude: { gold: "#1E9E63", goldSoft: "#9BE0BE", nom: "Émeraude" },
+  azur:     { gold: "#2D6CDF", goldSoft: "#A8C4F5", nom: "Azur" },
+  bordeaux: { gold: "#9B2D3A", goldSoft: "#E3A9B0", nom: "Bordeaux" },
+};
+
+/* C est muté en place : toutes les lectures C.xxx au rendu reçoivent la valeur courante */
+const C = { ...THEMES.clair };
+function applyTheme(themeName, accentKey) {
+  Object.assign(C, THEMES[themeName] || THEMES.clair);
+  const a = ACCENTS[accentKey] || ACCENTS.or;
+  C.gold = a.gold; C.goldSoft = a.goldSoft;
+  try {
+    document.documentElement.dataset.theme = themeName;
+    document.body.style.background = C.paper;
+    document.body.style.color = C.ink;
+  } catch (e) {}
+}
+
+let SOUND_ON = true;
 const mono = "'Courier New', Courier, monospace";
 const disp = "'Arial Narrow', 'Helvetica Neue Condensed', Arial, sans-serif";
 
@@ -149,6 +183,7 @@ const TR = {
   f_prov:        { fr: "Provenance", en: "Coming from", ru: "Прибыл из" },
   f_dest:        { fr: "Destination", en: "Destination", ru: "Направление" },
   b_register:    { fr: "✓ Enregistrer l'entrée", en: "✓ Register check-in", ru: "✓ Зарегистрировать въезд" },
+  b_register_kbd:{ fr: "Ctrl + Entrée", en: "Ctrl + Enter", ru: "Ctrl + Ввод" },
   b_checkout:    { fr: "Sortie ↦", en: "Check-out ↦", ru: "Выезд ↦" },
   b_fiche:       { fr: "📄 Fiche PDF", en: "📄 Form PDF", ru: "📄 PDF-карточка" },
   portrait_lbl:  { fr: "Photo du client (extraite de la pièce ou prise sur place)", en: "Guest photo (from document or taken on site)", ru: "Фото гостя (из документа или на месте)" },
@@ -160,6 +195,19 @@ const TR = {
   exp_none:      { fr: "Aucune donnée à exporter.", en: "No data to export.", ru: "Нет данных для экспорта." },
   /* Scan */
   scan_title:    { fr: "Numérisation de la pièce (CNI / Passeport)", en: "Document scan (ID / Passport)", ru: "Сканирование документа (УЛ / паспорт)" },
+  x50_title:     { fr: "Scanner de passeport — SecureScan X50", en: "Passport scanner — SecureScan X50", ru: "Сканер паспортов — SecureScan X50" },
+  x50_hint:      { fr: "Posez le document sur le lecteur : les champs se remplissent automatiquement.", en: "Place the document on the reader: fields fill automatically.", ru: "Положите документ на считыватель: поля заполнятся автоматически." },
+  x50_connect:   { fr: "🔌 Connecter le scanner", en: "🔌 Connect scanner", ru: "🔌 Подключить сканер" },
+  x50_disconnect:{ fr: "Déconnecter", en: "Disconnect", ru: "Отключить" },
+  x50_url:       { fr: "Adresse du service local", en: "Local service address", ru: "Адрес локальной службы" },
+  x50_connected: { fr: "Scanner connecté — en attente de document…", en: "Scanner connected — waiting for document…", ru: "Сканер подключён — ожидание документа…" },
+  x50_off:       { fr: "Scanner déconnecté.", en: "Scanner disconnected.", ru: "Сканер отключён." },
+  x50_err:       { fr: "Service du scanner introuvable — vérifiez que le pont SecureScan est lancé sur ce poste.", en: "Scanner service not found — check that the SecureScan bridge is running on this workstation.", ru: "Служба сканера не найдена — проверьте, что мост SecureScan запущен." },
+  x50_wedge:     { fr: "⌨ Mode émulation clavier", en: "⌨ Keyboard-wedge mode", ru: "⌨ Режим эмуляции клавиатуры" },
+  x50_wedge_stop:{ fr: "Arrêter l'écoute", en: "Stop listening", ru: "Остановить приём" },
+  x50_listening: { fr: "En écoute — passez le document sur le lecteur…", en: "Listening — swipe the document on the reader…", ru: "Приём — проведите документ через считыватель…" },
+  x50_filled:    { fr: "Document lu — champs remplis automatiquement. Vérifiez avant enregistrement.", en: "Document read — fields auto-filled. Verify before saving.", ru: "Документ считан — поля заполнены. Проверьте перед сохранением." },
+  x50_badmrz:    { fr: "Lecture reçue mais MRZ non reconnue — repositionnez le document.", en: "Read received but MRZ not recognized — reposition the document.", ru: "Данные получены, но MRZ не распознана — поправьте документ." },
   scan_cam:      { fr: "📷 Ouvrir la caméra", en: "📷 Open camera", ru: "📷 Открыть камеру" },
   scan_capture:  { fr: "Capturer", en: "Capture", ru: "Снять" },
   scan_close:    { fr: "Fermer", en: "Close", ru: "Закрыть" },
@@ -279,7 +327,43 @@ const TR = {
   n_entry_ok3:   { fr: ". Fiche transmise au registre national.", en: ". Form sent to the national registry.", ru: ". Карточка передана в национальный реестр." },
   n_warn:        { fr: "Entrée enregistrée. ATTENTION : correspondance avec le fichier des personnes signalées (", en: "Check-in registered. WARNING: watchlist match (", ru: "Въезд зарегистрирован. ВНИМАНИЕ: совпадение с розыскным списком (" },
   n_warn2:       { fr: ") — la Police Nationale a été notifiée automatiquement.", en: ") — the National Police has been notified automatically.", ru: ") — Национальная полиция уведомлена автоматически." },
-  footer:        { fr: "Prototype de démonstration — données fictives conservées en mémoire de session uniquement.", en: "Demonstration prototype — fictitious data kept in session memory only.", ru: "Демонстрационный прототип — вымышленные данные хранятся только в памяти сеанса." },
+  sync_local:    { fr: "Mémoire locale active", en: "Local memory active", ru: "Локальная память активна" },
+  sync_saved:    { fr: "Enregistré localement", en: "Saved locally", ru: "Сохранено локально" },
+  sync_title:    { fr: "Synchronisation", en: "Synchronization", ru: "Синхронизация" },
+  sync_url:      { fr: "Adresse du serveur central", en: "Central server address", ru: "Адрес центрального сервера" },
+  sync_push:     { fr: "⇅ Synchroniser maintenant", en: "⇅ Synchronize now", ru: "⇅ Синхронизировать" },
+  sync_export:   { fr: "⬇ Exporter la base (JSON)", en: "⬇ Export database (JSON)", ru: "⬇ Экспорт базы (JSON)" },
+  sync_import:   { fr: "⬆ Importer une base", en: "⬆ Import database", ru: "⬆ Импорт базы" },
+  sync_reset:    { fr: "Réinitialiser les données locales", en: "Reset local data", ru: "Сбросить локальные данные" },
+  sync_pending:  { fr: "en attente", en: "pending", ru: "в ожидании" },
+  sync_ok:       { fr: "Synchronisé avec le serveur central.", en: "Synchronized with central server.", ru: "Синхронизировано с сервером." },
+  sync_err:      { fr: "Serveur central injoignable — les données restent en mémoire locale.", en: "Central server unreachable — data kept in local memory.", ru: "Сервер недоступен — данные в локальной памяти." },
+  sync_reset_ok: { fr: "Données locales réinitialisées.", en: "Local data reset.", ru: "Локальные данные сброшены." },
+  sync_last:     { fr: "Dernière synchro", en: "Last sync", ru: "Последняя синхр." },
+  sync_never:    { fr: "jamais", en: "never", ru: "никогда" },
+  set_title:     { fr: "Paramètres", en: "Settings", ru: "Настройки" },
+  set_appearance:{ fr: "Apparence", en: "Appearance", ru: "Оформление" },
+  set_theme:     { fr: "Thème", en: "Theme", ru: "Тема" },
+  set_light:     { fr: "Clair", en: "Light", ru: "Светлая" },
+  set_dark:      { fr: "Sombre", en: "Dark", ru: "Тёмная" },
+  set_auto:      { fr: "Automatique (système)", en: "Automatic (system)", ru: "Авто (система)" },
+  set_accent:    { fr: "Couleur d'accent", en: "Accent color", ru: "Цвет акцента" },
+  set_density:   { fr: "Taille de l'interface", en: "Interface size", ru: "Размер интерфейса" },
+  set_compact:   { fr: "Compacte", en: "Compact", ru: "Компактный" },
+  set_normal:    { fr: "Normale", en: "Normal", ru: "Обычный" },
+  set_large:     { fr: "Grande", en: "Large", ru: "Крупный" },
+  set_behaviour: { fr: "Comportement", en: "Behaviour", ru: "Поведение" },
+  set_sound:     { fr: "Son des alertes", en: "Alert sound", ru: "Звук оповещений" },
+  set_anim:      { fr: "Animations de l'interface", en: "Interface animations", ru: "Анимации интерфейса" },
+  set_lang:      { fr: "Langue de l'interface", en: "Interface language", ru: "Язык интерфейса" },
+  set_toastdur:  { fr: "Durée des notifications (s)", en: "Notification duration (s)", ru: "Длительность уведомлений (с)" },
+  set_on:        { fr: "Activé", en: "On", ru: "Вкл" },
+  set_off:       { fr: "Désactivé", en: "Off", ru: "Выкл" },
+  set_close:     { fr: "Fermer", en: "Close", ru: "Закрыть" },
+  set_reset:     { fr: "Rétablir les réglages par défaut", en: "Restore defaults", ru: "Сбросить настройки" },
+  set_data:      { fr: "Données et établissement", en: "Data & establishment", ru: "Данные и учреждение" },
+  set_open:      { fr: "Paramètres", en: "Settings", ru: "Настройки" },
+  footer:        { fr: "Prototype de démonstration — données conservées en mémoire locale de ce navigateur (tests).", en: "Demonstration prototype — data kept in this browser's local memory (testing).", ru: "Демонстрационный прототип — данные в локальной памяти браузера (тесты)." },
 };
 
 const LangCtx = createContext({ lang: "fr", setLang: () => {} });
@@ -312,7 +396,7 @@ const HOTELS_INIT = [
   { id: "H04", nom: "Hôtel du Centre", prefecture: "Mambéré-Kadéï", ville: "Berbérati", quartier: "Centre", tel: "+236 72 00 00 04", chambres: 18, actif: true },
 ];
 
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "4.0.0";
 
 const PASS_POLICE = process.env.NEXT_PUBLIC_PASS_POLICE || "police";
 const PASS_HOTEL = process.env.NEXT_PUBLIC_PASS_HOTEL || "hotel";
@@ -490,7 +574,7 @@ const codeVerif = (r) => {
   for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
   return h.toString(16).toUpperCase().padStart(8, "0");
 };
-const norm = (s) => (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 /* ---------------- Référentiel pays : ISO alpha-2 / alpha-3 (passeports & MRZ) / indicatif téléphonique ---------------- */
 
@@ -806,47 +890,84 @@ const Field = ({ label, children, span }) => (
   </label>
 );
 
-const inputStyle = { border: `1px solid ${C.line}`, borderRadius: 4, padding: "9px 10px", fontSize: 14, color: C.ink, background: "#fff", outline: "none", width: "100%", boxSizing: "border-box" };
+const inputStyle = {};
+Object.defineProperties(inputStyle, {
+  border:     { enumerable: true, get: () => `1px solid ${C.line}` },
+  background: { enumerable: true, get: () => C.card },
+  color:      { enumerable: true, get: () => C.ink },
+  borderRadius: { enumerable: true, value: 5 },
+  padding:      { enumerable: true, value: "9px 10px" },
+  fontSize:     { enumerable: true, value: 14 },
+  outline:      { enumerable: true, value: "none" },
+  width:        { enumerable: true, value: "100%" },
+  boxSizing:    { enumerable: true, value: "border-box" },
+});
+
+const GlobalStyles = () => (
+  <style>{`
+    @keyframes sigchFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes sigchPop { 0% { transform: scale(.96); opacity: .4; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes sigchPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(201,162,39,.5); } 50% { box-shadow: 0 0 0 6px rgba(201,162,39,0); } }
+    @keyframes sigchSpin { to { transform: rotate(360deg); } }
+    * { box-sizing: border-box; }
+    body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    .sigch-card { animation: sigchFadeUp .35s cubic-bezier(.2,.7,.3,1) both; transition: box-shadow .2s, transform .2s, border-color .2s; }
+    .sigch-card:hover { box-shadow: 0 6px 20px rgba(16,30,51,.08); }
+    .sigch-stat { transition: transform .15s, box-shadow .2s; }
+    .sigch-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(16,30,51,.12); }
+    .sigch-btn { transition: filter .18s, transform .14s cubic-bezier(.2,.9,.3,1.3), box-shadow .18s; position: relative; }
+    .sigch-btn:hover:not(:disabled) { filter: brightness(1.15) saturate(1.08); box-shadow: 0 10px 24px rgba(16,30,51,.34), 0 0 0 3px rgba(201,162,39,.55); transform: translateY(-3px) scale(1.035); z-index: 2; }
+    .sigch-btn:active:not(:disabled) { transform: translateY(0) scale(.96); box-shadow: 0 2px 6px rgba(16,30,51,.25); filter: brightness(.97); }
+    .sigch-btn:focus-visible { outline: 3px solid rgba(201,162,39,.65); outline-offset: 2px; }
+    .sigch-tab { transition: background .15s, color .15s, box-shadow .15s; }
+    .sigch-row { transition: background .12s; }
+    .sigch-row:hover { background: #F7F9FC; }
+    .sigch-input { transition: border-color .15s, box-shadow .15s; }
+    .sigch-input:focus { border-color: #C9A227 !important; box-shadow: 0 0 0 3px rgba(201,162,39,.18); }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+    [data-anim="off"] * { animation: none !important; transition: none !important; }
+  `}</style>
+);
 
 const Btn = ({ children, onClick, kind = "primary", small, disabled, style }) => {
   const base = {
     primary: { background: C.navy, color: "#fff", border: `1px solid ${C.navy}` },
-    gold: { background: C.gold, color: C.navyDeep, border: `1px solid ${C.gold}` },
-    ghost: { background: "#fff", color: C.navy, border: `1px solid ${C.line}` },
+    gold: { background: C.gold, color: C.headDeep, border: `1px solid ${C.gold}` },
+    ghost: { background: C.card, color: C.head, border: `1px solid ${C.line}` },
     danger: { background: C.red, color: "#fff", border: `1px solid ${C.red}` },
     green: { background: C.green, color: "#fff", border: `1px solid ${C.green}` },
   }[kind];
   return (
-    <button onClick={onClick} disabled={disabled} style={{ ...base, opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer", borderRadius: 4, padding: small ? "6px 12px" : "10px 18px", fontSize: small ? 12 : 14, fontWeight: 700, letterSpacing: 0.3, ...style }}>
+    <button className="sigch-btn" onClick={onClick} disabled={disabled} style={{ ...base, opacity: disabled ? 0.5 : 1, cursor: disabled ? "not-allowed" : "pointer", borderRadius: 5, padding: small ? "6px 12px" : "10px 18px", fontSize: small ? 12 : 14, fontWeight: 700, letterSpacing: 0.3, ...style }}>
       {children}
     </button>
   );
 };
 
 const Card = ({ children, style }) => (
-  <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, padding: 18, ...style }}>{children}</div>
+  <div className="sigch-card" style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: 18, ...style }}>{children}</div>
 );
 
 const SectionTitle = ({ children, right }) => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-    <h3 style={{ margin: 0, fontFamily: disp, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", color: C.navy }}>{children}</h3>
+    <h3 style={{ margin: 0, fontFamily: disp, fontSize: 16, letterSpacing: 1, textTransform: "uppercase", color: C.head }}>{children}</h3>
     {right}
   </div>
 );
 
 const Stat = ({ label, value, accent, onClick }) => (
-  <Card style={{ padding: 14, borderTop: `3px solid ${accent || C.navy}`, cursor: onClick ? "pointer" : "default", transition: "box-shadow .15s", userSelect: "none" }}>
+  <div className="sigch-card sigch-stat" style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 8, padding: 14, borderTop: `3px solid ${accent || C.navy}`, cursor: onClick ? "pointer" : "default", userSelect: "none" }}>
     <div onClick={onClick} title={onClick ? "→" : undefined}>
-      <div style={{ fontSize: 28, fontWeight: 800, fontFamily: disp, color: C.navy }}>{value}</div>
+      <div style={{ fontSize: 28, fontWeight: 800, fontFamily: disp, color: C.head }}>{value}</div>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.gray, marginTop: 2 }}>{label} {onClick && <span style={{ color: C.gold }}>→</span>}</div>
     </div>
-  </Card>
+  </div>
 );
 
 const TabBar = ({ tabs, tab, setTab }) => (
   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
     {tabs.map(([k, label, dot]) => (
-      <button key={k} onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", padding: "9px 16px", borderRadius: 4, fontWeight: 700, fontSize: 13, background: tab === k ? C.navy : "#fff", color: tab === k ? "#fff" : C.navy, boxShadow: tab === k ? "none" : `inset 0 0 0 1px ${C.line}` }}>
+      <button key={k} className="sigch-tab sigch-btn" onClick={() => setTab(k)} style={{ border: "none", cursor: "pointer", padding: "9px 16px", borderRadius: 5, fontWeight: 700, fontSize: 13, background: tab === k ? C.navy : C.card, color: tab === k ? "#fff" : C.head, boxShadow: tab === k ? "0 2px 8px rgba(16,30,51,.2)" : `inset 0 0 0 1px ${C.line}` }}>
         {label}{dot && tab !== k ? " ●" : ""}
       </button>
     ))}
@@ -854,6 +975,106 @@ const TabBar = ({ tabs, tab, setTab }) => (
 );
 
 /* ---------------- Module de scan ---------------- */
+
+const X50_URL_DEFAUT = "ws://127.0.0.1:8288";
+
+function ScannerX50({ onData, setPhoto, setPortrait }) {
+  const t = useT();
+  const [mode, setMode] = useState(null);
+  const [wsUrl, setWsUrl] = useState(X50_URL_DEFAUT);
+  const [status, setStatus] = useState(null);
+  const wsRef = useRef(null);
+  const wedgeRef = useRef({ lines: [], cur: "", timer: null });
+
+  const applyScan = (mrzText, portraitImg, docImg) => {
+    if (portraitImg) setPortrait(portraitImg.startsWith("data:") ? portraitImg : "data:image/jpeg;base64," + portraitImg);
+    if (docImg) setPhoto(docImg.startsWith("data:") ? docImg : "data:image/jpeg;base64," + docImg);
+    if (mrzText) {
+      const d = parseMRZ(mrzText);
+      if (d) { onData(d); beep(); setStatus({ kind: "ok", msg: t("x50_filled") }); return true; }
+      setStatus({ kind: "err", msg: t("x50_badmrz") });
+    }
+    return false;
+  };
+
+  const connect = () => {
+    try {
+      const ws = new WebSocket(wsUrl.trim());
+      wsRef.current = ws;
+      ws.onopen = () => setStatus({ kind: "on", msg: t("x50_connected") });
+      ws.onerror = () => setStatus({ kind: "err", msg: t("x50_err") });
+      ws.onclose = () => { if (wsRef.current === ws) { wsRef.current = null; setMode(null); setStatus((st) => (st && st.kind === "err" ? st : { kind: "off", msg: t("x50_off") })); } };
+      ws.onmessage = (ev) => {
+        let mrz = "", por = null, img = null;
+        try { const j = JSON.parse(ev.data); mrz = j.mrz || j.MRZ || j.codeline || ""; por = j.portrait || j.face || j.photo || null; img = j.image || j.document || j.scan || null; }
+        catch (e) { mrz = String(ev.data || ""); }
+        applyScan(mrz, por, img);
+      };
+      setMode("ws");
+    } catch (e) { setStatus({ kind: "err", msg: t("x50_err") }); }
+  };
+  const disconnect = () => { const ws = wsRef.current; wsRef.current = null; if (ws) ws.close(); setMode(null); setStatus({ kind: "off", msg: t("x50_off") }); };
+  useEffect(() => () => { if (wsRef.current) wsRef.current.close(); }, []);
+
+  useEffect(() => {
+    if (mode !== "wedge") return;
+    const st = wedgeRef.current;
+    st.lines = []; st.cur = "";
+    const tryParse = () => {
+      if (st.cur.length >= 28) { st.lines.push(st.cur); st.cur = ""; }
+      if (st.lines.length >= 2) {
+        if (applyScan(st.lines.join("\n"), null, null)) { st.lines = []; setMode(null); return; }
+        if (st.lines.length >= 3) st.lines = [];
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") { setMode(null); return; }
+      if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); tryParse(); return; }
+      const ch = e.key && e.key.length === 1 ? e.key.toUpperCase() : null;
+      if (ch && /[A-Z0-9<]/.test(ch)) {
+        e.preventDefault(); e.stopPropagation();
+        st.cur += ch;
+        clearTimeout(st.timer);
+        st.timer = setTimeout(tryParse, 350);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    setStatus({ kind: "listen", msg: t("x50_listening") });
+    return () => { window.removeEventListener("keydown", onKey, true); clearTimeout(st.timer); };
+  }, [mode]);
+
+  const dotColor = !status ? C.gray : status.kind === "on" || status.kind === "ok" ? C.green : status.kind === "listen" ? C.gold : status.kind === "err" ? C.red : C.gray;
+
+  return (
+    <div style={{ border: `2px solid ${C.navy}`, borderRadius: 6, padding: 12, background: C.card, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span style={{ width: 10, height: 10, borderRadius: "50%", background: dotColor, display: "inline-block", flexShrink: 0 }} />
+        <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: C.head }}>{t("x50_title")}</span>
+      </div>
+      <div style={{ fontSize: 11.5, color: C.gray, marginBottom: 8 }}>{t("x50_hint")}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        {mode !== "ws" ? (
+          <>
+            <Btn small kind="primary" onClick={connect}>{t("x50_connect")}</Btn>
+            <input title={t("x50_url")} style={{ ...inputStyle, width: 190, padding: "6px 8px", fontFamily: mono, fontSize: 11.5 }} value={wsUrl} onChange={(e) => setWsUrl(e.target.value)} />
+          </>
+        ) : (
+          <Btn small kind="ghost" onClick={disconnect}>{t("x50_disconnect")}</Btn>
+        )}
+        {mode !== "wedge" ? (
+          <Btn small kind="ghost" onClick={() => { if (mode === "ws") disconnect(); setMode("wedge"); }}>{t("x50_wedge")}</Btn>
+        ) : (
+          <Btn small kind="gold" onClick={() => setMode(null)}>{t("x50_wedge_stop")}</Btn>
+        )}
+      </div>
+      {status && (
+        <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: status.kind === "ok" ? C.green : status.kind === "err" ? C.red : status.kind === "listen" ? C.amber : C.navy }}>
+          {status.msg}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ScanModule({ onData, photo, setPhoto, portrait, setPortrait }) {
   const t = useT();
@@ -902,7 +1123,8 @@ function ScanModule({ onData, photo, setPhoto, portrait, setPortrait }) {
 
   return (
     <div style={{ border: `1px dashed ${C.gray}`, borderRadius: 6, padding: 14, background: C.blueSoft }}>
-      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: C.navy, marginBottom: 10 }}>{t("scan_title")}</div>
+      <ScannerX50 onData={onData} setPhoto={setPhoto} setPortrait={setPortrait} />
+      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: C.head, marginBottom: 10 }}>{t("scan_title")}</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
         {!camOn ? <Btn small kind="ghost" onClick={() => { setCamTarget("doc"); startCam(); }}>{t("scan_cam")}</Btn> : (
           <>
@@ -920,7 +1142,7 @@ function ScanModule({ onData, photo, setPhoto, portrait, setPortrait }) {
       <div style={{ borderTop: `1px dashed ${C.gray}`, margin: "10px 0", paddingTop: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.gray, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6 }}>{t("portrait_lbl")}</div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start", flexWrap: "wrap" }}>
-          <div style={{ width: 86, height: 110, border: `2px solid ${C.navy}`, borderRadius: 4, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+          <div style={{ width: 86, height: 110, border: `2px solid ${C.navy}`, borderRadius: 4, background: C.card, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             {portrait ? <img src={portrait} alt="portrait" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 10, color: C.gray, fontWeight: 700, letterSpacing: 1 }}>PHOTO</span>}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -973,7 +1195,7 @@ function GuestTable({ rows, hotels, action, showHotel, showExit, onLog }) {
           {rows.map((s) => {
             const h = hotels.find((x) => x.id === s.hotelId);
             return (
-              <tr key={s.id} style={{ background: s.signale ? C.redSoft : "transparent" }}>
+              <tr key={s.id} className="sigch-row" style={{ background: s.signale ? C.redSoft : "transparent" }}>
                 <td style={td}>
                   <strong>{s.nom}</strong> {s.prenom}
                   <div style={{ fontSize: 11, color: C.gray }}>{s.sexe || "—"} · {t("born_on")} {fmtD(s.dateNaissance)}</div>
@@ -1079,30 +1301,31 @@ function HotelView({ user, hotels, users, setUsers, sejours, setSejours, watchli
       {tab === "in" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
           <Card>
+            <div onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); submit(); } }}>
             <SectionTitle>{t("card_title")}</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <Field label={t("f_nom")}><input style={inputStyle} value={form.nom} onChange={set("nom")} /></Field>
-              <Field label={t("f_prenom")}><input style={inputStyle} value={form.prenom} onChange={set("prenom")} /></Field>
+              <Field label={t("f_nom")}><input className="sigch-input" style={inputStyle} value={form.nom} onChange={set("nom")} /></Field>
+              <Field label={t("f_prenom")}><input className="sigch-input" style={inputStyle} value={form.prenom} onChange={set("prenom")} /></Field>
               <Field label={t("f_sexe")}>
-                <select style={inputStyle} value={form.sexe} onChange={set("sexe")}>
+                <select className="sigch-input" style={inputStyle} value={form.sexe} onChange={set("sexe")}>
                   <option value="">—</option><option value="M">{t("sexe_m")}</option><option value="F">{t("sexe_f")}</option>
                 </select>
               </Field>
               <Field label={t("f_dob")}><input type="date" style={inputStyle} value={form.dateNaissance} onChange={set("dateNaissance")} /></Field>
               <Field label={t("f_nat")}>
-                <select style={inputStyle} value={form.nationalite} onChange={set("nationalite")}>
+                <select className="sigch-input" style={inputStyle} value={form.nationalite} onChange={set("nationalite")}>
                   {countryOpts.map((c) => <option key={c.a3} value={c.a3}>{c.name} ({c.a3})</option>)}
                 </select>
               </Field>
               <Field label={t("f_typedoc")}>
-                <select style={inputStyle} value={form.typeDoc} onChange={set("typeDoc")}>
+                <select className="sigch-input" style={inputStyle} value={form.typeDoc} onChange={set("typeDoc")}>
                   <option value="CNI">{t("doc_cni")}</option>
                   <option value="PASSEPORT">{t("doc_pass")}</option>
                   <option value="CARTE_SEJOUR">{t("doc_sejour")}</option>
                   <option value="AUTRE">{t("doc_autre")}</option>
                 </select>
               </Field>
-              <Field label={t("f_numdoc")} span={2}><input style={{ ...inputStyle, fontFamily: mono, letterSpacing: 1 }} value={form.numDoc} onChange={set("numDoc")} /></Field>
+              <Field label={t("f_numdoc")} span={2}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono, letterSpacing: 1 }} value={form.numDoc} onChange={set("numDoc")} /></Field>
               <Field label={t("f_tel")}>
                 <div style={{ display: "flex", gap: 6 }}>
                   <select style={{ ...inputStyle, width: 130, flex: "0 0 auto", fontFamily: mono, fontSize: 12.5 }} value={form.telPrefix} onChange={set("telPrefix")}>
@@ -1112,9 +1335,9 @@ function HotelView({ user, hotels, users, setUsers, sejours, setSejours, watchli
                 </div>
               </Field>
               <Field label={t("f_email")}><input type="email" style={inputStyle} placeholder="nom@exemple.com" value={form.email} onChange={set("email")} /></Field>
-              <Field label={t("f_room")}><input style={inputStyle} value={form.chambre} onChange={set("chambre")} /></Field>
+              <Field label={t("f_room")}><input className="sigch-input" style={inputStyle} value={form.chambre} onChange={set("chambre")} /></Field>
               <Field label={t("f_motif")}>
-                <select style={inputStyle} value={MOTIFS.some(([m]) => m === form.motif) ? form.motif : (form.motif ? "__autre__" : "")} onChange={(e) => setForm({ ...form, motif: e.target.value === "__autre__" ? " " : e.target.value })}>
+                <select className="sigch-input" style={inputStyle} value={MOTIFS.some(([m]) => m === form.motif) ? form.motif : (form.motif ? "__autre__" : "")} onChange={(e) => setForm({ ...form, motif: e.target.value === "__autre__" ? " " : e.target.value })}>
                   <option value="">—</option>
                   {MOTIFS.map(([m, k]) => <option key={m} value={m}>{t(k)}</option>)}
                   <option value="__autre__">{t("m_autre")}</option>
@@ -1122,25 +1345,27 @@ function HotelView({ user, hotels, users, setUsers, sejours, setSejours, watchli
               </Field>
               {!MOTIFS.some(([m]) => m === form.motif) && form.motif !== "" && (
                 <Field label={t("m_autre")} span={2}>
-                  <input style={inputStyle} placeholder={t("m_precisez")} value={form.motif.trim() === "" ? "" : form.motif} onChange={set("motif")} />
+                  <input className="sigch-input" style={inputStyle} placeholder={t("m_precisez")} value={form.motif.trim() === "" ? "" : form.motif} onChange={set("motif")} />
                 </Field>
               )}
               <Field label={t("f_prov")}>
                 <>
-                  <input style={inputStyle} list="lieux-suggestions" value={form.provenance} onChange={set("provenance")} />
+                  <input className="sigch-input" style={inputStyle} list="lieux-suggestions" value={form.provenance} onChange={set("provenance")} />
                 </>
               </Field>
               <Field label={t("f_dest")}>
                 <>
-                  <input style={inputStyle} list="lieux-suggestions" value={form.destination} onChange={set("destination")} />
+                  <input className="sigch-input" style={inputStyle} list="lieux-suggestions" value={form.destination} onChange={set("destination")} />
                   <datalist id="lieux-suggestions">
                     {lieux.map((l) => <option key={l} value={l} />)}
                   </datalist>
                 </>
               </Field>
             </div>
-            <div style={{ marginTop: 14 }}>
+            <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <Btn kind="gold" onClick={submit}>{t("b_register")}</Btn>
+              <span style={{ fontSize: 11, color: C.gray }}>{t("b_register_kbd")}</span>
+            </div>
             </div>
           </Card>
           <ScanModule photo={photo} setPhoto={setPhoto} portrait={portrait} setPortrait={setPortrait} onData={(d) => setForm((f) => ({ ...f, ...d }))} />
@@ -1173,9 +1398,9 @@ function HotelView({ user, hotels, users, setUsers, sejours, setSejours, watchli
           <Card>
             <SectionTitle>{t("rc_add")}</SectionTitle>
             <div style={{ display: "grid", gap: 10 }}>
-              <Field label={t("u_fullname")}><input style={inputStyle} value={rForm.nom} onChange={(e) => setRForm({ ...rForm, nom: e.target.value })} /></Field>
-              <Field label={t("login_id")}><input style={{ ...inputStyle, fontFamily: mono }} value={rForm.login} onChange={(e) => setRForm({ ...rForm, login: e.target.value })} /></Field>
-              <Field label={t("login_pass")}><input style={{ ...inputStyle, fontFamily: mono }} value={rForm.pass} onChange={(e) => setRForm({ ...rForm, pass: e.target.value })} /></Field>
+              <Field label={t("u_fullname")}><input className="sigch-input" style={inputStyle} value={rForm.nom} onChange={(e) => setRForm({ ...rForm, nom: e.target.value })} /></Field>
+              <Field label={t("login_id")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={rForm.login} onChange={(e) => setRForm({ ...rForm, login: e.target.value })} /></Field>
+              <Field label={t("login_pass")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={rForm.pass} onChange={(e) => setRForm({ ...rForm, pass: e.target.value })} /></Field>
               <Btn onClick={addRecep}>{t("b_create")}</Btn>
               {rNotice && (
                 <div style={{ borderRadius: 4, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, background: rNotice.ok ? C.greenSoft : C.redSoft, color: rNotice.ok ? C.green : C.red }}>{rNotice.t}</div>
@@ -1202,7 +1427,7 @@ function HotelView({ user, hotels, users, setUsers, sejours, setSejours, watchli
 
 /* ---------------- Console POLICE / ADMIN ---------------- */
 
-function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchlist, setWatchlist, alerts, setAlerts, journal, setJournal, log, alertsJump }) {
+function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchlist, setWatchlist, alerts, setAlerts, journal, setJournal, log, alertsJump, lastSync, setLastSync, resetLocal, dbSnapshot }) {
   const t = useT();
   const countryOpts = useCountryOptions();
   const [tab, setTab] = useState("dash");
@@ -1344,7 +1569,58 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
     setPurgeAsk(false);
   };
 
-  const TAB_FR = { dash: "Tableau de bord", search: "Recherche nationale", alerts: "Alertes", watch: "Personnes signalées", journal: "Journal", hotels: "Établissements", users: "Comptes utilisateurs" };
+  const [syncUrl, setSyncUrl] = useState(() => { try { return localStorage.getItem(SYNC_URL_KEY) || "https://"; } catch (e) { return "https://"; } });
+  const [syncMsg, setSyncMsg] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const importRef = useRef(null);
+
+  const doSync = async () => {
+    setSyncing(true); setSyncMsg(null);
+    try { localStorage.setItem(SYNC_URL_KEY, syncUrl); } catch (e) {}
+    try {
+      const res = await fetch(syncUrl.replace(/\/$/, "") + "/api/sync", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ since: lastSync, data: dbSnapshot() }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      await res.json().catch(() => ({}));
+      const now2 = now();
+      setLastSync(now2);
+      log("Synchronisation avec le serveur central", "SYNC");
+      setSyncMsg({ ok: true, t: t("sync_ok") });
+    } catch (e) {
+      setSyncMsg({ ok: false, t: t("sync_err") });
+    } finally { setSyncing(false); }
+  };
+
+  const exportDB = () => {
+    const data = JSON.stringify(dbSnapshot(), null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url;
+    a.download = "sigch_base_" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+    log("Export de la base locale (JSON)", "EXPORT");
+  };
+
+  const importDB = (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (d.hotels) setHotels(d.hotels);
+        if (d.users) setUsers(d.users);
+        if (d.sejours && setSejours) { /* via snapshot */ }
+        setSyncMsg({ ok: true, t: t("sync_saved") });
+        log("Import d'une base externe (JSON)", "SYNC");
+      } catch (err) { setSyncMsg({ ok: false, t: "JSON invalide." }); }
+    };
+    r.readAsText(f);
+  };
+
+  const TAB_FR = { dash: "Tableau de bord", search: "Recherche nationale", alerts: "Alertes", watch: "Personnes signalées", journal: "Journal", hotels: "Établissements", users: "Comptes utilisateurs", sync: "Synchronisation" };
   const goTab = (k) => { if (k !== tab) log(`Consultation : ${TAB_FR[k]}`, "CONSULTATION"); setTab(k); };
   const goSearch = (patch) => { setQ({ ...Q0, ...patch }); goTab("search"); };
   const dateISO = (msAgo) => new Date(Date.now() - msAgo).toISOString().slice(0, 10);
@@ -1356,10 +1632,11 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
     ["search", t("tab_search")],
     ["alerts", `${t("tab_alerts")} (${alertesActives.length})`, alertesActives.length > 0],
     ["watch", t("tab_watch")],
-    ["journal", t("tab_journal")],
   ];
+  if (isAdmin) tabs.push(["journal", t("tab_journal")]);
   if (isAdmin) tabs.push(["hotels", t("tab_hotels")]);
   tabs.push(["users", t("tab_users")]);
+  if (isAdmin) tabs.push(["sync", t("sync_title")]);
 
   const roleBadge = (r) => r === "POLICE" ? t("r_police") : r === "HOTEL" ? t("r_hotel") : t("r_admin");
 
@@ -1370,7 +1647,7 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
       {tab === "dash" && (
         <>
           <Card style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: C.navy }}>{t("rep_title")}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: C.head }}>{t("rep_title")}</span>
             <select style={{ ...inputStyle, width: 190 }} value={repJours} onChange={(e) => setRepJours(parseInt(e.target.value, 10))}>
               <option value={7}>{t("rep_7")}</option>
               <option value={30}>{t("rep_30")}</option>
@@ -1445,8 +1722,8 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
                           <td style={tdf}><strong>{g.nom}</strong> {g.prenom}{g.present && <> <Badge bg={C.greenSoft} fg={C.green}>{t("status_present")}</Badge></>}</td>
                           <td style={{ ...tdf, fontFamily: mono, fontSize: 12.5 }}>{g.typeDoc}<br />{g.numDoc}</td>
                           <td style={tdf}>{g.nationalite}</td>
-                          <td style={{ ...tdf, fontFamily: disp, fontSize: 18, fontWeight: 800, color: C.navy }}>{g.sejoursN}</td>
-                          <td style={{ ...tdf, fontFamily: disp, fontSize: 18, fontWeight: 800, color: C.navy }}>{g.nuits}</td>
+                          <td style={{ ...tdf, fontFamily: disp, fontSize: 18, fontWeight: 800, color: C.head }}>{g.sejoursN}</td>
+                          <td style={{ ...tdf, fontFamily: disp, fontSize: 18, fontWeight: 800, color: C.head }}>{g.nuits}</td>
                           <td style={tdf}>{fmtDT(g.dernier)}<div style={{ fontSize: 11, color: C.gray }}>{h ? h.nom : "—"}</div></td>
                           <td style={tdf}>{frequent && <Badge bg={C.amber} fg="#fff">{t("freq_badge")}</Badge>}</td>
                         </tr>
@@ -1468,21 +1745,21 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
         <Card>
           <SectionTitle>{t("s_title")}</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
-            <Field label={t("s_query")}><input style={inputStyle} value={q.texte} onChange={(e) => setQ({ ...q, texte: e.target.value })} placeholder={t("s_query_ph")} /></Field>
+            <Field label={t("s_query")}><input className="sigch-input" style={inputStyle} value={q.texte} onChange={(e) => setQ({ ...q, texte: e.target.value })} placeholder={t("s_query_ph")} /></Field>
             <Field label={t("t_hotel")}>
-              <select style={inputStyle} value={q.hotelId} onChange={(e) => setQ({ ...q, hotelId: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={q.hotelId} onChange={(e) => setQ({ ...q, hotelId: e.target.value })}>
                 <option value="">{t("s_all")}</option>
                 {hotels.map((h) => <option key={h.id} value={h.id}>{h.nom}</option>)}
               </select>
             </Field>
             <Field label={t("s_city")}>
-              <select style={inputStyle} value={q.ville} onChange={(e) => setQ({ ...q, ville: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={q.ville} onChange={(e) => setQ({ ...q, ville: e.target.value })}>
                 <option value="">{t("s_all")}</option>
                 {villes.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
             </Field>
             <Field label={t("f_nat")}>
-              <select style={inputStyle} value={q.nat} onChange={(e) => setQ({ ...q, nat: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={q.nat} onChange={(e) => setQ({ ...q, nat: e.target.value })}>
                 <option value="">{t("s_all")}</option>
                 {countryOpts.map((c) => <option key={c.a3} value={c.a3}>{c.name} ({c.a3})</option>)}
               </select>
@@ -1490,12 +1767,12 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
             <Field label={t("t_status")}>
-              <select style={inputStyle} value={q.statut} onChange={(e) => setQ({ ...q, statut: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={q.statut} onChange={(e) => setQ({ ...q, statut: e.target.value })}>
                 <option value="">{t("s_all")}</option><option value="PRESENT">{t("s_present")}</option><option value="SORTI">{t("s_out")}</option><option value="SIGNALE">{t("s_flagged")}</option>
               </select>
             </Field>
             <Field label={t("f_typedoc")}>
-              <select style={inputStyle} value={q.typeDoc} onChange={(e) => setQ({ ...q, typeDoc: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={q.typeDoc} onChange={(e) => setQ({ ...q, typeDoc: e.target.value })}>
                 <option value="">{t("s_all")}</option>
                 <option value="CNI">{t("doc_cni")}</option>
                 <option value="PASSEPORT">{t("doc_pass")}</option>
@@ -1504,7 +1781,7 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
               </select>
             </Field>
             <Field label={t("f_sexe")}>
-              <select style={inputStyle} value={q.sexe} onChange={(e) => setQ({ ...q, sexe: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={q.sexe} onChange={(e) => setQ({ ...q, sexe: e.target.value })}>
                 <option value="">{t("s_all")}</option><option value="M">{t("sexe_m")}</option><option value="F">{t("sexe_f")}</option>
               </select>
             </Field>
@@ -1550,12 +1827,12 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
           <Card>
             <SectionTitle>{t("w_add")}</SectionTitle>
             <div style={{ display: "grid", gap: 10 }}>
-              <Field label={t("f_nom")}><input style={inputStyle} value={wForm.nom} onChange={(e) => setWForm({ ...wForm, nom: e.target.value })} /></Field>
-              <Field label={t("f_prenom")}><input style={inputStyle} value={wForm.prenom} onChange={(e) => setWForm({ ...wForm, prenom: e.target.value })} /></Field>
-              <Field label={t("w_docopt")}><input style={{ ...inputStyle, fontFamily: mono }} value={wForm.numDoc} onChange={(e) => setWForm({ ...wForm, numDoc: e.target.value })} /></Field>
-              <Field label={t("w_motif")}><input style={inputStyle} value={wForm.motif} onChange={(e) => setWForm({ ...wForm, motif: e.target.value })} /></Field>
+              <Field label={t("f_nom")}><input className="sigch-input" style={inputStyle} value={wForm.nom} onChange={(e) => setWForm({ ...wForm, nom: e.target.value })} /></Field>
+              <Field label={t("f_prenom")}><input className="sigch-input" style={inputStyle} value={wForm.prenom} onChange={(e) => setWForm({ ...wForm, prenom: e.target.value })} /></Field>
+              <Field label={t("w_docopt")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={wForm.numDoc} onChange={(e) => setWForm({ ...wForm, numDoc: e.target.value })} /></Field>
+              <Field label={t("w_motif")}><input className="sigch-input" style={inputStyle} value={wForm.motif} onChange={(e) => setWForm({ ...wForm, motif: e.target.value })} /></Field>
               <Field label={t("w_level")}>
-                <select style={inputStyle} value={wForm.niveau} onChange={(e) => setWForm({ ...wForm, niveau: e.target.value })}>
+                <select className="sigch-input" style={inputStyle} value={wForm.niveau} onChange={(e) => setWForm({ ...wForm, niveau: e.target.value })}>
                   <option value="ORANGE">{t("lvl_o")}</option>
                   <option value="ROUGE">{t("lvl_r")}</option>
                 </select>
@@ -1580,7 +1857,7 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
         </div>
       )}
 
-      {tab === "journal" && (
+      {isAdmin && tab === "journal" && (
         <Card>
           <SectionTitle right={isAdmin && journal.length > 0 && (
             !purgeAsk
@@ -1592,15 +1869,15 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
                 </span>
           )}>{t("j_title")}</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
-            <Field label={t("j_ftext")}><input style={inputStyle} value={jf.texte} onChange={(e) => setJf({ ...jf, texte: e.target.value })} placeholder={t("s_query_ph")} /></Field>
+            <Field label={t("j_ftext")}><input className="sigch-input" style={inputStyle} value={jf.texte} onChange={(e) => setJf({ ...jf, texte: e.target.value })} placeholder={t("s_query_ph")} /></Field>
             <Field label={t("j_ftype")}>
-              <select style={inputStyle} value={jf.type} onChange={(e) => setJf({ ...jf, type: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={jf.type} onChange={(e) => setJf({ ...jf, type: e.target.value })}>
                 <option value="">{t("s_all")}</option>
                 {jTypes.map((x) => <option key={x} value={x}>{x}</option>)}
               </select>
             </Field>
             <Field label={t("j_fauthor")}>
-              <select style={inputStyle} value={jf.par} onChange={(e) => setJf({ ...jf, par: e.target.value })}>
+              <select className="sigch-input" style={inputStyle} value={jf.par} onChange={(e) => setJf({ ...jf, par: e.target.value })}>
                 <option value="">{t("s_all")}</option>
                 {jPars.map((x) => <option key={x} value={x}>{x}</option>)}
               </select>
@@ -1615,7 +1892,7 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
           {journalFiltre.map((j, i) => (
             <div key={j.date + i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 13, alignItems: "center" }}>
               <span style={{ fontFamily: mono, fontSize: 11.5, color: C.gray, whiteSpace: "nowrap" }}>{fmtDT(j.date)}</span>
-              <Badge bg={j.type === "ALERTE" ? C.red : j.type === "ENTREE" ? C.greenSoft : j.type === "SORTIE" ? C.line : j.type === "COMPTE" ? C.amberSoft : j.type === "EXPORT" ? C.goldSoft : j.type === "RECHERCHE" ? C.blueSoft : j.type === "CONSULTATION" ? "#EFF1F4" : C.blueSoft} fg={j.type === "ALERTE" ? "#fff" : C.navy}>{j.type}</Badge>
+              <Badge bg={j.type === "ALERTE" ? C.red : j.type === "ENTREE" ? C.greenSoft : j.type === "SORTIE" ? C.line : j.type === "COMPTE" ? C.amberSoft : j.type === "EXPORT" ? C.goldSoft : j.type === "RECHERCHE" ? C.blueSoft : j.type === "CONSULTATION" ? C.blueSoft : C.blueSoft} fg={j.type === "ALERTE" ? "#fff" : C.head}>{j.type}</Badge>
               <span style={{ flex: 1 }}>{j.msg}{j.par && <span style={{ color: C.gray, fontSize: 11.5 }}> — {t("by_label")} {j.par}</span>}</span>
               {isAdmin && (
                 <button onClick={() => setJournal((p) => p.filter((x) => x !== j))} title={t("b_remove")}
@@ -1632,32 +1909,32 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
           <Card>
             <SectionTitle>{t("h_add")}</SectionTitle>
             <div style={{ display: "grid", gap: 10 }}>
-              <Field label={t("h_name")}><input style={inputStyle} value={hForm.nom} onChange={(e) => setHForm({ ...hForm, nom: e.target.value })} /></Field>
+              <Field label={t("h_name")}><input className="sigch-input" style={inputStyle} value={hForm.nom} onChange={(e) => setHForm({ ...hForm, nom: e.target.value })} /></Field>
               <Field label={t("h_pref")}>
-                <select style={inputStyle} value={hForm.prefecture} onChange={(e) => setHForm({ ...hForm, prefecture: e.target.value, ville: "", quartier: "" })}>
+                <select className="sigch-input" style={inputStyle} value={hForm.prefecture} onChange={(e) => setHForm({ ...hForm, prefecture: e.target.value, ville: "", quartier: "" })}>
                   <option value="">{t("h_pick")}</option>
                   {Object.keys(CAR_GEO).map((pref) => <option key={pref} value={pref}>{pref}</option>)}
                 </select>
               </Field>
               <Field label={t("h_city")}>
-                <select style={inputStyle} value={hForm.ville} disabled={!hForm.prefecture} onChange={(e) => setHForm({ ...hForm, ville: e.target.value, quartier: "" })}>
+                <select className="sigch-input" style={inputStyle} value={hForm.ville} disabled={!hForm.prefecture} onChange={(e) => setHForm({ ...hForm, ville: e.target.value, quartier: "" })}>
                   <option value="">{t("h_pick")}</option>
                   {(CAR_GEO[hForm.prefecture] || []).map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </Field>
               <Field label={t("h_district")}>
                 <>
-                  <input style={inputStyle} list="quartiers-suggestions" value={hForm.quartier} onChange={(e) => setHForm({ ...hForm, quartier: e.target.value })} />
+                  <input className="sigch-input" style={inputStyle} list="quartiers-suggestions" value={hForm.quartier} onChange={(e) => setHForm({ ...hForm, quartier: e.target.value })} />
                   <datalist id="quartiers-suggestions">
                     {(QUARTIERS[hForm.ville] || []).map((qt) => <option key={qt} value={qt} />)}
                   </datalist>
                 </>
               </Field>
-              <Field label={t("h_phone")}><input style={inputStyle} value={hForm.tel} onChange={(e) => setHForm({ ...hForm, tel: e.target.value })} /></Field>
+              <Field label={t("h_phone")}><input className="sigch-input" style={inputStyle} value={hForm.tel} onChange={(e) => setHForm({ ...hForm, tel: e.target.value })} /></Field>
               <Field label={t("h_rooms")}><input type="number" style={inputStyle} value={hForm.chambres} onChange={(e) => setHForm({ ...hForm, chambres: e.target.value })} /></Field>
-              <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: C.navy }}>{t("h_account")}</div>
-              <Field label={t("login_id")}><input style={{ ...inputStyle, fontFamily: mono }} value={hForm.login} onChange={(e) => setHForm({ ...hForm, login: e.target.value })} /></Field>
-              <Field label={t("login_pass")}><input style={{ ...inputStyle, fontFamily: mono }} value={hForm.pass} onChange={(e) => setHForm({ ...hForm, pass: e.target.value })} /></Field>
+              <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: C.head }}>{t("h_account")}</div>
+              <Field label={t("login_id")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={hForm.login} onChange={(e) => setHForm({ ...hForm, login: e.target.value })} /></Field>
+              <Field label={t("login_pass")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={hForm.pass} onChange={(e) => setHForm({ ...hForm, pass: e.target.value })} /></Field>
               <Btn onClick={addHotel}>{t("b_connect")}</Btn>
               {hNotice && (
                 <div style={{ borderRadius: 4, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, background: hNotice.ok ? C.greenSoft : C.redSoft, color: hNotice.ok ? C.green : C.red }}>{hNotice.t}</div>
@@ -1686,23 +1963,23 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
             <SectionTitle>{t("u_add")}</SectionTitle>
             <div style={{ display: "grid", gap: 10 }}>
               <Field label={t("u_role")}>
-                <select style={inputStyle} value={uForm.role} onChange={(e) => setUForm({ ...uForm, role: e.target.value })}>
+                <select className="sigch-input" style={inputStyle} value={uForm.role} onChange={(e) => setUForm({ ...uForm, role: e.target.value })}>
                   <option value="POLICE">{t("r_police")}</option>
                   <option value="HOTEL">{t("r_hotel")}</option>
                   {isAdmin && <option value="ADMIN">{t("r_admin")}</option>}
                 </select>
               </Field>
-              <Field label={t("u_fullname")}><input style={inputStyle} value={uForm.nom} onChange={(e) => setUForm({ ...uForm, nom: e.target.value })} /></Field>
+              <Field label={t("u_fullname")}><input className="sigch-input" style={inputStyle} value={uForm.nom} onChange={(e) => setUForm({ ...uForm, nom: e.target.value })} /></Field>
               {uForm.role === "POLICE" && (
                 <>
                   <Field label={t("u_dept")}>
-                    <select style={inputStyle} value={uForm.dept} onChange={(e) => setUForm({ ...uForm, dept: e.target.value })}>
+                    <select className="sigch-input" style={inputStyle} value={uForm.dept} onChange={(e) => setUForm({ ...uForm, dept: e.target.value })}>
                       <option value="">{t("h_pick")}</option>
                       {DEPTS_POLICE.map((d) => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </Field>
                   <Field label={`${t("u_comm")} ${t("u_opt")}`}>
-                    <select style={inputStyle} value={uForm.commissariat} onChange={(e) => setUForm({ ...uForm, commissariat: e.target.value })}>
+                    <select className="sigch-input" style={inputStyle} value={uForm.commissariat} onChange={(e) => setUForm({ ...uForm, commissariat: e.target.value })}>
                       <option value="">{t("h_pick")}</option>
                       {COMMISSARIATS().map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -1711,14 +1988,14 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
               )}
               {uForm.role === "HOTEL" && (
                 <Field label={t("u_hotel")}>
-                  <select style={inputStyle} value={uForm.hotelId} onChange={(e) => setUForm({ ...uForm, hotelId: e.target.value })}>
+                  <select className="sigch-input" style={inputStyle} value={uForm.hotelId} onChange={(e) => setUForm({ ...uForm, hotelId: e.target.value })}>
                     <option value="">—</option>
                     {hotels.map((h) => <option key={h.id} value={h.id}>{h.nom}</option>)}
                   </select>
                 </Field>
               )}
-              <Field label={t("login_id")}><input style={{ ...inputStyle, fontFamily: mono }} value={uForm.login} onChange={(e) => setUForm({ ...uForm, login: e.target.value })} /></Field>
-              <Field label={t("login_pass")}><input style={{ ...inputStyle, fontFamily: mono }} value={uForm.pass} onChange={(e) => setUForm({ ...uForm, pass: e.target.value })} /></Field>
+              <Field label={t("login_id")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={uForm.login} onChange={(e) => setUForm({ ...uForm, login: e.target.value })} /></Field>
+              <Field label={t("login_pass")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono }} value={uForm.pass} onChange={(e) => setUForm({ ...uForm, pass: e.target.value })} /></Field>
               <Btn onClick={addUser}>{t("b_create")}</Btn>
               {uNotice && (
                 <div style={{ borderRadius: 4, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, background: uNotice.ok ? C.greenSoft : C.redSoft, color: uNotice.ok ? C.green : C.red }}>{uNotice.t}</div>
@@ -1744,6 +2021,38 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
           </Card>
         </div>
       )}
+
+      {isAdmin && tab === "sync" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+          <Card>
+            <SectionTitle>{t("sync_title")}</SectionTitle>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "8px 12px", background: C.greenSoft, borderRadius: 6, fontSize: 13, color: C.green, fontWeight: 600 }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: C.green, display: "inline-block" }} />
+              {t("sync_local")}
+            </div>
+            <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 4 }}>{t("sync_last")} : <strong style={{ color: C.ink }}>{lastSync ? fmtDT(lastSync) : t("sync_never")}</strong></div>
+            <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+              <Field label={t("sync_url")}><input className="sigch-input" style={{ ...inputStyle, fontFamily: mono, fontSize: 12.5 }} value={syncUrl} onChange={(e) => setSyncUrl(e.target.value)} placeholder="https://sigch.interieur.gouv.cf" /></Field>
+              <Btn kind="primary" onClick={doSync} disabled={syncing}>{syncing ? "…" : t("sync_push")}</Btn>
+              {syncMsg && <div style={{ borderRadius: 4, padding: "10px 12px", fontSize: 12.5, fontWeight: 600, background: syncMsg.ok ? C.greenSoft : C.redSoft, color: syncMsg.ok ? C.green : C.red }}>{syncMsg.t}</div>}
+            </div>
+          </Card>
+          <Card>
+            <SectionTitle>Sauvegarde locale</SectionTitle>
+            <div style={{ fontSize: 12.5, color: C.gray, marginBottom: 12 }}>
+              Pendant les tests, toutes les données (hôtels, séjours, comptes, journal) sont conservées dans ce navigateur et restituées au rechargement. Exportez-les pour les transférer ou les archiver.
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <Btn kind="gold" onClick={exportDB}>{t("sync_export")}</Btn>
+              <Btn kind="ghost" onClick={() => importRef.current && importRef.current.click()}>{t("sync_import")}</Btn>
+              <input ref={importRef} type="file" accept="application/json,.json" onChange={importDB} style={{ display: "none" }} />
+              <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 10, marginTop: 4 }}>
+                <Btn kind="danger" onClick={() => { if (confirm(t("sync_reset"))) { resetLocal(); setSyncMsg({ ok: true, t: t("sync_reset_ok") }); } }}>{t("sync_reset")}</Btn>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -1751,6 +2060,7 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
 /* ---------------- Notifications (personnes signalées) ---------------- */
 
 function beep() {
+  if (!SOUND_ON) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     [880, 660].forEach((f, i) => {
@@ -1781,8 +2091,8 @@ function NotifBell({ alerts, hotels, onOpenAlerts }) {
         )}
       </button>
       {open && (
-        <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 340, maxWidth: "86vw", background: "#fff", color: C.ink, border: `1px solid ${C.line}`, borderTop: `3px solid ${C.red}`, borderRadius: 6, boxShadow: "0 10px 28px rgba(0,0,0,.28)", zIndex: 50 }}>
-          <div style={{ padding: "10px 12px", fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: C.navy, borderBottom: `1px solid ${C.line}` }}>{t("notif_title")}</div>
+        <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 340, maxWidth: "86vw", background: C.card, color: C.ink, border: `1px solid ${C.line}`, borderTop: `3px solid ${C.red}`, borderRadius: 6, boxShadow: "0 10px 28px rgba(0,0,0,.28)", zIndex: 50 }}>
+          <div style={{ padding: "10px 12px", fontSize: 11, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", color: C.head, borderBottom: `1px solid ${C.line}` }}>{t("notif_title")}</div>
           <div style={{ maxHeight: 300, overflowY: "auto" }}>
             {nonTraitees.length === 0 && <div style={{ padding: 14, fontSize: 12.5, color: C.gray }}>{t("notif_none")}</div>}
             {nonTraitees.map((a) => {
@@ -1814,7 +2124,7 @@ function NotifToast({ alert, hotels, onClose, onOpenAlerts }) {
   if (!alert) return null;
   const h = hotels.find((x) => x.id === alert.hotelId);
   return (
-    <div style={{ position: "fixed", right: 18, bottom: 18, width: 360, maxWidth: "90vw", background: "#fff", border: `2px solid ${C.red}`, borderRadius: 8, boxShadow: "0 12px 32px rgba(0,0,0,.35)", zIndex: 100, overflow: "hidden" }}>
+    <div style={{ position: "fixed", right: 18, bottom: 18, width: 360, maxWidth: "90vw", background: C.card, border: `2px solid ${C.red}`, borderRadius: 8, boxShadow: "0 12px 32px rgba(0,0,0,.35)", zIndex: 100, overflow: "hidden" }}>
       <div style={{ background: C.red, color: "#fff", padding: "9px 12px", fontSize: 12, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>⚠ {t("notif_new")}</span>
         <button onClick={onClose} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>✕</button>
@@ -1839,6 +2149,7 @@ function Login({ users, hotels, onLogin }) {
   const [attempts, setAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(0);
   const [, setTick] = useState(0);
+  const [setOpen, setSetOpen] = useState(false);
 
   useEffect(() => {
     if (!lockedUntil) return;
@@ -1885,7 +2196,10 @@ function Login({ users, hotels, onLogin }) {
 
   return (
     <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${C.navyDeep} 0%, ${C.navy} 60%, ${C.navyLight} 100%)`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, position: "relative" }}>
+      <GlobalStyles />
       <Filigrane opacity={0.06} />
+      <button className="sigch-btn" title={t("set_open")} onClick={() => setSetOpen(true)} style={{ position: "absolute", top: 16, right: 16, zIndex: 3, background: "rgba(255,255,255,.08)", border: `1px solid ${C.gold}`, borderRadius: 8, cursor: "pointer", padding: "8px 11px", fontSize: 17, color: C.goldSoft }}>⚙</button>
+      <SettingsPanel open={setOpen} onClose={() => setSetOpen(false)} />
       <div style={{ width: 430, maxWidth: "100%", position: "relative", zIndex: 1 }}>
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <div style={{ color: "#fff", fontFamily: disp, fontSize: 17, letterSpacing: 3.5, textTransform: "uppercase", fontWeight: 800, marginBottom: 12 }}>{t("republic")}</div>
@@ -1900,13 +2214,13 @@ function Login({ users, hotels, onLogin }) {
         </div>
         <Card style={{ padding: 24 }}>
           <div style={{ display: "grid", gap: 12 }}>
-            <Field label={t("login_id")}><input style={inputStyle} autoComplete="username" value={l} onChange={(e) => setL(e.target.value)} disabled={locked} /></Field>
+            <Field label={t("login_id")}><input className="sigch-input" style={inputStyle} autoComplete="username" value={l} onChange={(e) => setL(e.target.value)} disabled={locked} /></Field>
             <Field label={t("login_pass")}><input type="password" autoComplete="current-password" style={inputStyle} value={p} onChange={(e) => setP(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} disabled={locked} /></Field>
             {err && <div style={{ color: C.red, fontSize: 12.5, fontWeight: 600 }} role="alert">{err}</div>}
             <Btn kind="gold" onClick={go} disabled={locked}>{t("login_btn")}</Btn>
           </div>
           {SHOW_DEMO_ACCOUNTS && (
-            <div style={{ marginTop: 16, padding: 12, background: C.blueSoft, borderRadius: 4, fontSize: 12, color: C.navy }}>
+            <div style={{ marginTop: 16, padding: 12, background: C.blueSoft, borderRadius: 4, fontSize: 12, color: C.head }}>
               <strong>{t("demo")}</strong><br />
               Police : <code style={{ fontFamily: mono }}>police / {PASS_POLICE}</code><br />
               Hôtel : <code style={{ fontFamily: mono }}>ledger / {PASS_HOTEL}</code> · <code style={{ fontFamily: mono }}>oubangui / {PASS_HOTEL}</code><br />
@@ -1922,20 +2236,66 @@ function Login({ users, hotels, onLogin }) {
 
 /* ---------------- Application ---------------- */
 
+/* ---------------- Mémoire locale (tests) + synchronisation ---------------- */
+
+const DB_KEY = "sigch.db.v1";
+const SYNC_URL_KEY = "sigch.syncurl.v1";
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (!d || !Array.isArray(d.hotels)) return null;
+    return d;
+  } catch (e) { return null; }
+}
+function saveDB(db) {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); return true; } catch (e) { return false; }
+}
+function clearDB() { try { localStorage.removeItem(DB_KEY); } catch (e) {} }
+
+/* État initial : mémoire locale si présente, sinon jeu de démonstration */
+function initialState() {
+  const d = loadDB();
+  if (d) return d;
+  return { users: USERS_INIT, hotels: HOTELS_INIT, sejours: SEJOURS_INIT, watchlist: WATCHLIST_INIT, journal: [], dirty: 0, lastSync: null };
+}
+
 function Shell() {
   const t = useT();
-  const [users, setUsers] = useState(USERS_INIT);
-  const [hotels, setHotels] = useState(HOTELS_INIT);
-  const [sejours, setSejours] = useState(SEJOURS_INIT);
-  const [watchlist, setWatchlist] = useState(WATCHLIST_INIT);
+  const boot = useRef(initialState());
+  const [users, setUsers] = useState(boot.current.users);
+  const [hotels, setHotels] = useState(boot.current.hotels);
+  const [sejours, setSejours] = useState(boot.current.sejours);
+  const [watchlist, setWatchlist] = useState(boot.current.watchlist);
   const [alerts, setAlerts] = useState([]);
-  const [journal, setJournal] = useState([]);
+  const [journal, setJournal] = useState(boot.current.journal || []);
   const [user, setUser] = useState(null);
+  const [lastSync, setLastSync] = useState(boot.current.lastSync || null);
+  const saveTimer = useRef(null);
+  const lastActivity = useRef(Date.now());
+
+  /* Auto-sauvegarde en mémoire locale (anti-rebond) à chaque changement */
+  useEffect(() => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveDB({ users, hotels, sejours, watchlist, journal, lastSync, dirty: Date.now() });
+    }, 400);
+    return () => clearTimeout(saveTimer.current);
+  }, [users, hotels, sejours, watchlist, journal, lastSync]);
+
+  const resetLocal = () => {
+    clearDB();
+    setUsers(USERS_INIT); setHotels(HOTELS_INIT); setSejours(SEJOURS_INIT);
+    setWatchlist(WATCHLIST_INIT); setJournal([]); setAlerts([]); setLastSync(null);
+  };
 
   const [toast, setToast] = useState(null);
   const [alertsJump, setAlertsJump] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const cfg = useCfg();
   const toastTimer = useRef(null);
-  const lastActivity = useRef(Date.now());
 
   const log = (msg, type, par) => setJournal((p) => [{ date: now(), msg, type, par: par || (user && user.nom) || "Système" }, ...p]);
   const addAlert = (a) => {
@@ -1943,7 +2303,7 @@ function Shell() {
     beep();
     setToast(a);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 9000);
+    toastTimer.current = setTimeout(() => setToast(null), (cfg && cfg.toast ? cfg.toast : 9) * 1000);
   };
   const openAlertsPage = () => { setToast(null); setAlertsJump((n) => n + 1); };
 
@@ -1978,6 +2338,7 @@ function Shell() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.paper, color: C.ink, fontFamily: "'Segoe UI', system-ui, Arial, sans-serif", position: "relative" }}>
+      <GlobalStyles />
       <Filigrane opacity={0.045} />
       <header style={{ background: C.navy, color: "#fff", borderBottom: `3px solid ${C.gold}`, position: "relative", zIndex: 1 }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "10px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -1986,7 +2347,12 @@ function Shell() {
             <div style={{ fontFamily: disp, fontSize: 17, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 800 }}>{t("app_title")} <span style={{ fontSize: 11, fontWeight: 600, color: C.goldSoft, letterSpacing: 0.5 }}>v{APP_VERSION}</span></div>
             <div style={{ fontSize: 11.5, color: "#9FB0C8" }}>{t("ministry")} — {roleLabel}</div>
           </div>
+          <span title={t("sync_local")} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700, color: C.goldSoft, border: `1px solid ${C.navyLight}`, borderRadius: 20, padding: "3px 9px", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#3FBF6A", display: "inline-block" }} />
+            {t("sync_local")}
+          </span>
           {(user.role === "POLICE" || user.role === "ADMIN") && <NotifBell alerts={alerts} hotels={hotels} onOpenAlerts={openAlertsPage} />}
+          <button className="sigch-btn" title={t("set_open")} onClick={() => setSettingsOpen(true)} style={{ background: "none", border: `1px solid ${C.gold}`, borderRadius: 6, cursor: "pointer", padding: "7px 10px", fontSize: 16, lineHeight: 1, color: C.goldSoft }}>⚙</button>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 13, fontWeight: 700 }}>{user.nom}</div>
             <button onClick={() => logout("Déconnexion")} style={{ background: "none", border: "none", color: C.goldSoft, cursor: "pointer", fontSize: 12, padding: 0, textDecoration: "underline" }}>{t("logout")}</button>
@@ -1998,7 +2364,9 @@ function Shell() {
         {(user.role === "POLICE" || user.role === "ADMIN") && (
           <Console isAdmin={user.role === "ADMIN"} hotels={hotels} setHotels={setHotels} users={users} setUsers={setUsers}
             sejours={sejours} watchlist={watchlist} setWatchlist={setWatchlist}
-            alerts={alerts} setAlerts={setAlerts} journal={journal} setJournal={setJournal} log={log} alertsJump={alertsJump} />
+            alerts={alerts} setAlerts={setAlerts} journal={journal} setJournal={setJournal} log={log} alertsJump={alertsJump}
+            lastSync={lastSync} setLastSync={setLastSync} resetLocal={resetLocal}
+            dbSnapshot={() => ({ users, hotels, sejours, watchlist, journal, lastSync })} />
         )}
       </main>
       <footer style={{ textAlign: "center", padding: "14px 20px 26px", fontSize: 11, color: C.gray, position: "relative", zIndex: 1 }}>
@@ -2008,15 +2376,137 @@ function Shell() {
       {(user.role === "POLICE" || user.role === "ADMIN") && (
         <NotifToast alert={toast} hotels={hotels} onClose={() => setToast(null)} onOpenAlerts={openAlertsPage} />
       )}
+      <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </div>
+  );
+}
+
+/* ---------------- Configuration & Paramètres ---------------- */
+
+const CFG_KEY = "sigch.cfg.v1";
+const CfgCtx = createContext(null);
+const useCfg = () => useContext(CfgCtx);
+
+const CFG_DEFAUT = { theme: "clair", auto: true, accent: "or", density: "normal", sound: true, anim: true, toast: 9 };
+
+function loadCfg() {
+  try { const d = JSON.parse(localStorage.getItem(CFG_KEY)); return d ? { ...CFG_DEFAUT, ...d } : { ...CFG_DEFAUT }; }
+  catch (e) { return { ...CFG_DEFAUT }; }
+}
+function prefersDark() {
+  try { return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return false; }
+}
+
+const Toggle = ({ on, onChange }) => (
+  <button className="sigch-btn" onClick={() => onChange(!on)} style={{ width: 48, height: 26, borderRadius: 13, border: "none", cursor: "pointer", background: on ? C.green : C.line, position: "relative", transition: "background .2s", padding: 0 }}>
+    <span style={{ position: "absolute", top: 3, left: on ? 25 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left .2s", boxShadow: "0 1px 3px rgba(0,0,0,.3)" }} />
+  </button>
+);
+
+function SettingsPanel({ open, onClose }) {
+  const t = useT();
+  const cfg = useCfg();
+  const { lang, setLang } = useContext(LangCtx);
+  if (!open) return null;
+  const Row = ({ label, children }) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "11px 0", borderBottom: `1px solid ${C.line}` }}>
+      <span style={{ fontSize: 13.5, color: C.ink, fontWeight: 600 }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>{children}</div>
+    </div>
+  );
+  const Seg = ({ value, options, onChange }) => (
+    <div style={{ display: "inline-flex", border: `1px solid ${C.line}`, borderRadius: 7, overflow: "hidden" }}>
+      {options.map(([v, lab]) => (
+        <button key={v} className="sigch-btn" onClick={() => onChange(v)} style={{ border: "none", cursor: "pointer", padding: "6px 12px", fontSize: 12.5, fontWeight: 700, background: value === v ? C.navy : C.card, color: value === v ? "#fff" : C.head }}>{lab}</button>
+      ))}
+    </div>
+  );
+  const h2 = { fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase", color: C.gold, margin: "16px 0 2px" };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(5,10,20,.55)", zIndex: 200, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "6vh 16px", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} className="sigch-card" style={{ background: C.card, color: C.ink, border: `1px solid ${C.line}`, borderTop: `4px solid ${C.gold}`, borderRadius: 10, width: 480, maxWidth: "100%", padding: "18px 22px 22px", boxShadow: "0 18px 50px rgba(0,0,0,.4)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <h3 style={{ margin: 0, fontFamily: disp, fontSize: 19, letterSpacing: 1, textTransform: "uppercase", color: C.head }}>⚙ {t("set_title")}</h3>
+          <button className="sigch-btn" onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 20, color: C.gray, fontWeight: 800 }}>✕</button>
+        </div>
+
+        <div style={h2}>{t("set_appearance")}</div>
+        <Row label={t("set_theme")}>
+          <Seg value={cfg.auto ? "auto" : cfg.theme}
+            options={[["clair", t("set_light")], ["sombre", t("set_dark")], ["auto", t("set_auto").split(" ")[0]]]}
+            onChange={(v) => v === "auto" ? cfg.set({ auto: true }) : cfg.set({ auto: false, theme: v })} />
+        </Row>
+        <Row label={t("set_accent")}>
+          {Object.entries(ACCENTS).map(([k, a]) => (
+            <button key={k} className="sigch-btn" title={a.nom} onClick={() => cfg.set({ accent: k })}
+              style={{ width: 26, height: 26, borderRadius: "50%", cursor: "pointer", background: a.gold, border: cfg.accent === k ? `3px solid ${C.ink}` : `2px solid ${C.line}` }} />
+          ))}
+        </Row>
+        <Row label={t("set_density")}>
+          <Seg value={cfg.density} options={[["compact", t("set_compact")], ["normal", t("set_normal")], ["large", t("set_large")]]} onChange={(v) => cfg.set({ density: v })} />
+        </Row>
+
+        <div style={h2}>{t("set_behaviour")}</div>
+        <Row label={t("set_lang")}>
+          <Seg value={lang} options={[["fr", "FR"], ["en", "EN"], ["ru", "RU"]]} onChange={setLang} />
+        </Row>
+        <Row label={t("set_sound")}><Toggle on={cfg.sound} onChange={(v) => cfg.set({ sound: v })} /></Row>
+        <Row label={t("set_anim")}><Toggle on={cfg.anim} onChange={(v) => cfg.set({ anim: v })} /></Row>
+        <Row label={t("set_toastdur")}>
+          <input type="range" min="3" max="20" value={cfg.toast} onChange={(e) => cfg.set({ toast: parseInt(e.target.value, 10) })} style={{ width: 120 }} />
+          <span style={{ fontFamily: mono, fontSize: 12, minWidth: 28, textAlign: "right" }}>{cfg.toast}s</span>
+        </Row>
+
+        <div style={{ marginTop: 18, display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <Btn kind="ghost" small onClick={() => cfg.reset()}>{t("set_reset")}</Btn>
+          <Btn kind="gold" small onClick={onClose}>{t("set_close")}</Btn>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function App() {
-  const [lang, setLang] = useState("fr");
+  const [cfgState, setCfgState] = useState(loadCfg);
+  const langFromCfg = cfgState.lang || "fr";
+  const [lang, setLangState] = useState(langFromCfg);
+  const setLang = (l) => { setLangState(l); setCfgState((c) => ({ ...c, lang: l })); };
+
+  /* Thème effectif : auto suit le système */
+  const effTheme = cfgState.auto ? (prefersDark() ? "sombre" : "clair") : cfgState.theme;
+
+  /* Appliquer la configuration (palette, densité, animations, son) */
+  applyTheme(effTheme, cfgState.accent);
+  SOUND_ON = cfgState.sound !== false;
+
+  useEffect(() => {
+    try { localStorage.setItem(CFG_KEY, JSON.stringify(cfgState)); } catch (e) {}
+    try {
+      const sc = { compact: "14px", normal: "16px", large: "18px" }[cfgState.density] || "16px";
+      document.documentElement.style.fontSize = sc;
+      document.documentElement.dataset.anim = cfgState.anim === false ? "off" : "on";
+    } catch (e) {}
+  }, [cfgState]);
+
+  /* Suivre le thème système quand "auto" est actif */
+  useEffect(() => {
+    if (!cfgState.auto) return;
+    let mq; const handler = () => setCfgState((c) => ({ ...c }));
+    try { mq = window.matchMedia("(prefers-color-scheme: dark)"); mq.addEventListener("change", handler); } catch (e) {}
+    return () => { try { mq && mq.removeEventListener("change", handler); } catch (e) {} };
+  }, [cfgState.auto]);
+
+  const cfg = {
+    ...cfgState,
+    set: (patch) => setCfgState((c) => ({ ...c, ...patch })),
+    reset: () => { setCfgState({ ...CFG_DEFAUT, lang }); },
+  };
+
   return (
-    <LangCtx.Provider value={{ lang, setLang }}>
-      <Shell />
-    </LangCtx.Provider>
+    <CfgCtx.Provider value={cfg}>
+      <LangCtx.Provider value={{ lang, setLang }}>
+        <Shell />
+      </LangCtx.Provider>
+    </CfgCtx.Provider>
   );
 }

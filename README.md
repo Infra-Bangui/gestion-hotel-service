@@ -1,6 +1,6 @@
 # Contrôle National Hôtelier — RCA
 
-**Version 2.0.0** — Prototype Next.js du registre national des entrées/sorties hôtelières (Police Nationale / RCA).
+**Version 4.0.0** — Prototype Next.js du registre national des entrées/sorties hôtelières (Police Nationale / RCA).
 
 ## Démarrage local
 
@@ -20,12 +20,25 @@ Ouvrir [http://localhost:3000](http://localhost:3000).
 | Hôtel  | `ledger`    | `hotel`      |
 | Admin  | `admin`     | `admin`      |
 
-## Nouveautés v2
+## Nouveautés v4
 
+- **Lecteur SecureScan X50** : connexion WebSocket locale (`ws://127.0.0.1:8288`) ou mode émulation clavier ; remplissage auto MRZ, photo et scan
+- **Pont Windows** : voir [`deploy/securescan/LISEZ-MOI-lecteur-passeport.md`](deploy/securescan/LISEZ-MOI-lecteur-passeport.md)
+- **Paramètres** : thème clair/sombre, couleur d’accent, densité, sons, animations
+- **Mémoire locale** du navigateur + export/import JSON et synchronisation serveur (tests)
 - Blocage de connexion si l’établissement hôtelier est **suspendu**
 - **Rapport périodique PDF** (7 / 30 / 90 jours) depuis le tableau de bord police/admin
 - Exports PDF des listes (présents, historique, recherche nationale)
-- Affichage de la version dans l’UI
+
+### Pont SecureScan X50 (poste réception Windows)
+
+```bash
+cd deploy/securescan
+npm install
+node pont-securescan-x50.js
+```
+
+Dans l’application, onglet **Nouvelle entrée** → panneau **SecureScan X50** → **Connecter le scanner**.
 
 ## Sécurité
 
