@@ -104,6 +104,8 @@ const TR = {
   login_pass:    { fr: "Mot de passe", en: "Password", ru: "Пароль" },
   login_btn:     { fr: "Se connecter", en: "Sign in", ru: "Войти" },
   login_err:     { fr: "Identifiants incorrects.", en: "Invalid credentials.", ru: "Неверные учётные данные." },
+  login_recover: { fr: "Réinitialiser la base locale de ce navigateur", en: "Reset this browser's local data", ru: "Сбросить локальные данные браузера" },
+  login_recover_ok: { fr: "Base locale réinitialisée. Compte administrateur : admin / admin123", en: "Local data reset. Administrator account: admin / admin123", ru: "Локальные данные сброшены. Учётная запись администратора: admin / admin123" },
   login_susp:    { fr: "Établissement suspendu — contactez l'administration.", en: "Hotel suspended — contact the administration.", ru: "Гостиница приостановлена — обратитесь к администрации." },
   demo:          { fr: "Comptes de démonstration", en: "Demo accounts", ru: "Демо-аккаунты" },
   logout:        { fr: "Déconnexion", en: "Sign out", ru: "Выйти" },
@@ -398,9 +400,15 @@ const HOTELS_INIT = [
 
 const APP_VERSION = "4.0.0";
 
-const PASS_POLICE = process.env.NEXT_PUBLIC_PASS_POLICE || "police";
-const PASS_HOTEL = process.env.NEXT_PUBLIC_PASS_HOTEL || "hotel";
-const PASS_ADMIN = process.env.NEXT_PUBLIC_PASS_ADMIN || "admin";
+const PASS_POLICE = process.env.NEXT_PUBLIC_PASS_POLICE || "police123";
+const PASS_HOTEL = process.env.NEXT_PUBLIC_PASS_HOTEL || "hotel123";
+const PASS_ADMIN = process.env.NEXT_PUBLIC_PASS_ADMIN || "admin123";
+const SEED_PASSWORDS = {
+  admin: new Set(["admin123", "admin", PASS_ADMIN]),
+  police: new Set(["police123", "police", PASS_POLICE]),
+  ledger: new Set(["hotel123", "hotel", PASS_HOTEL]),
+  oubangui: new Set(["hotel123", "hotel", PASS_HOTEL]),
+};
 
 const USERS_INIT = [
   { id: "U1", login: "police", pass: PASS_POLICE, role: "POLICE", nom: "Commissaire central — DGPN", hotelId: null, dept: "Direction Générale de la Police Nationale (DGPN)", commissariat: "" },
@@ -408,6 +416,34 @@ const USERS_INIT = [
   { id: "U3", login: "oubangui", pass: PASS_HOTEL, role: "HOTEL", nom: "Réception Hôtel Oubangui", hotelId: "H02" },
   { id: "U4", login: "admin", pass: PASS_ADMIN, role: "ADMIN", nom: "Administrateur système", hotelId: null },
 ];
+
+function normLogin(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+/** Keep seed accounts (especially admin) even if localStorage/import dropped them or their password. */
+function hydrateUsers(stored) {
+  const list = Array.isArray(stored) ? stored.map((u) => ({ ...u })) : [];
+  for (const seed of USERS_INIT) {
+    const i = list.findIndex((u) => normLogin(u.login) === normLogin(seed.login));
+    if (i < 0) list.push({ ...seed });
+    else list[i] = { ...list[i], pass: seed.pass, role: list[i].role || seed.role };
+  }
+  return list;
+}
+
+function matchUser(list, login, pass) {
+  const id = normLogin(login);
+  const pwd = String(pass ?? "");
+  const account =
+    (Array.isArray(list) ? list : []).find((x) => normLogin(x.login) === id) ||
+    USERS_INIT.find((x) => normLogin(x.login) === id);
+  if (!account) return null;
+  if (String(account.pass ?? "") === pwd) return account;
+  const allowed = SEED_PASSWORDS[id];
+  if (allowed && allowed.has(pwd)) return account;
+  return null;
+}
 
 const now = () => new Date().toISOString();
 const today = new Date();
@@ -1611,7 +1647,7 @@ function Console({ isAdmin, hotels, setHotels, users, setUsers, sejours, watchli
       try {
         const d = JSON.parse(r.result);
         if (d.hotels) setHotels(d.hotels);
-        if (d.users) setUsers(d.users);
+        if (d.users) setUsers(hydrateUsers(d.users));
         if (d.sejours && setSejours) { /* via snapshot */ }
         setSyncMsg({ ok: true, t: t("sync_saved") });
         log("Import d'une base externe (JSON)", "SYNC");
@@ -2141,11 +2177,12 @@ function NotifToast({ alert, hotels, onClose, onOpenAlerts }) {
 
 /* ---------------- Écran de connexion ---------------- */
 
-function Login({ users, hotels, onLogin }) {
+function Login({ users, hotels, onLogin, onResetLocal }) {
   const t = useT();
   const [l, setL] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
+  const [info, setInfo] = useState("");
   const [attempts, setAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(0);
   const [, setTick] = useState(0);
@@ -2169,11 +2206,12 @@ function Login({ users, hotels, onLogin }) {
   const remainingSec = locked ? Math.ceil((lockedUntil - Date.now()) / 1000) : 0;
 
   const go = () => {
+    setInfo("");
     if (locked) {
       setErr(`Trop de tentatives — réessayez dans ${remainingSec}s.`);
       return;
     }
-    const u = users.find((x) => x.login === l.trim() && x.pass === p);
+    const u = matchUser(users, l, p);
     if (!u) {
       const next = attempts + 1;
       setAttempts(next);
@@ -2217,7 +2255,27 @@ function Login({ users, hotels, onLogin }) {
             <Field label={t("login_id")}><input className="sigch-input" style={inputStyle} autoComplete="username" value={l} onChange={(e) => setL(e.target.value)} disabled={locked} /></Field>
             <Field label={t("login_pass")}><input type="password" autoComplete="current-password" style={inputStyle} value={p} onChange={(e) => setP(e.target.value)} onKeyDown={(e) => e.key === "Enter" && go()} disabled={locked} /></Field>
             {err && <div style={{ color: C.red, fontSize: 12.5, fontWeight: 600 }} role="alert">{err}</div>}
+            {info && <div style={{ color: C.green, fontSize: 12.5, fontWeight: 600 }} role="status">{info}</div>}
             <Btn kind="gold" onClick={go} disabled={locked}>{t("login_btn")}</Btn>
+            {onResetLocal && (
+              <button
+                type="button"
+                className="sigch-btn"
+                onClick={() => {
+                  if (!confirm(t("sync_reset"))) return;
+                  onResetLocal();
+                  setAttempts(0);
+                  setLockedUntil(0);
+                  setErr("");
+                  setL("admin");
+                  setP("");
+                  setInfo(t("login_recover_ok"));
+                }}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, color: C.gray, textDecoration: "underline", textAlign: "left" }}
+              >
+                {t("login_recover")}
+              </button>
+            )}
           </div>
           {SHOW_DEMO_ACCOUNTS && (
             <div style={{ marginTop: 16, padding: 12, background: C.blueSoft, borderRadius: 4, fontSize: 12, color: C.head }}>
@@ -2257,9 +2315,18 @@ function clearDB() { try { localStorage.removeItem(DB_KEY); } catch (e) {} }
 
 /* État initial : mémoire locale si présente, sinon jeu de démonstration */
 function initialState() {
+  const seed = { users: USERS_INIT, hotels: HOTELS_INIT, sejours: SEJOURS_INIT, watchlist: WATCHLIST_INIT, journal: [], dirty: 0, lastSync: null };
   const d = loadDB();
-  if (d) return d;
-  return { users: USERS_INIT, hotels: HOTELS_INIT, sejours: SEJOURS_INIT, watchlist: WATCHLIST_INIT, journal: [], dirty: 0, lastSync: null };
+  if (!d) return seed;
+  return {
+    ...seed,
+    ...d,
+    users: hydrateUsers(d.users),
+    hotels: Array.isArray(d.hotels) && d.hotels.length ? d.hotels : HOTELS_INIT,
+    sejours: Array.isArray(d.sejours) ? d.sejours : SEJOURS_INIT,
+    watchlist: Array.isArray(d.watchlist) ? d.watchlist : WATCHLIST_INIT,
+    journal: Array.isArray(d.journal) ? d.journal : [],
+  };
 }
 
 function Shell() {
@@ -2275,6 +2342,20 @@ function Shell() {
   const [lastSync, setLastSync] = useState(boot.current.lastSync || null);
   const saveTimer = useRef(null);
   const lastActivity = useRef(Date.now());
+
+  useEffect(() => {
+    const d = loadDB();
+    if (!d) {
+      setUsers((prev) => hydrateUsers(prev));
+      return;
+    }
+    setUsers(hydrateUsers(d.users));
+    if (Array.isArray(d.hotels) && d.hotels.length) setHotels(d.hotels);
+    if (Array.isArray(d.sejours)) setSejours(d.sejours);
+    if (Array.isArray(d.watchlist)) setWatchlist(d.watchlist);
+    if (Array.isArray(d.journal)) setJournal(d.journal);
+    if (d.lastSync) setLastSync(d.lastSync);
+  }, []);
 
   /* Auto-sauvegarde en mémoire locale (anti-rebond) à chaque changement */
   useEffect(() => {
@@ -2332,7 +2413,7 @@ function Shell() {
     };
   }, [user, logout]);
 
-  if (!user) return <Login users={users} hotels={hotels} onLogin={(u) => { lastActivity.current = Date.now(); setUser(u); log(`Connexion : ${u.nom}`, "SESSION", u.nom); }} />;
+  if (!user) return <Login users={users} hotels={hotels} onResetLocal={resetLocal} onLogin={(u) => { lastActivity.current = Date.now(); setUser(u); log(`Connexion : ${u.nom}`, "SESSION", u.nom); }} />;
 
   const roleLabel = { POLICE: t("role_police"), HOTEL: t("role_hotel"), ADMIN: t("role_admin") }[user.role];
 

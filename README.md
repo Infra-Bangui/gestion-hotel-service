@@ -16,9 +16,10 @@ Ouvrir [http://localhost:3000](http://localhost:3000).
 
 | Rôle   | Identifiant | Mot de passe |
 |--------|-------------|--------------|
-| Police | `police`    | `police`     |
-| Hôtel  | `ledger`    | `hotel`      |
-| Admin  | `admin`     | `admin`      |
+| Police | `police`    | `police123`  |
+| Hôtel  | `ledger`    | `hotel123`   |
+| Hôtel  | `oubangui`  | `hotel123`   |
+| Admin  | `admin`     | `admin123`   |
 
 ## Nouveautés v4
 
